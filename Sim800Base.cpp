@@ -1,10 +1,10 @@
-#include <Arduino.h> // for Serial.print();
+#include <Arduino.h>
 #include "Sim800Base.h"
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-Sim800Base::Sim800Base(HardwareSerial *_serial, SoftwareSerial *_logger) {
+Sim800Base::Sim800Base(Stream *_serial, Stream *_logger) {
     // init serial
     this->serial = _serial;
     this->logger = _logger;

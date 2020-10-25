@@ -1,13 +1,11 @@
 #ifndef SIM800_H
 #define SIM800_H
 
-#include <SoftwareSerial.h>
-#include <HardWareserial.h>
 #include "Sim800Base.h"
 
 class Sim800 : public Sim800Base {
 public:
-    Sim800(HardwareSerial *serial, SoftwareSerial *logger) : Sim800Base(serial, logger) {};
+    Sim800(Stream *serial, Stream *logger) : Sim800Base(serial, logger) {};
     bool init();
     bool redyForCall();
     uint8_t makeCall(const char *phone);
@@ -21,7 +19,7 @@ public:
     uint8_t resetSettings();
     uint32_t getVoltage();
     uint32_t getSignal();
-    // TODO: add SMS functions
+    // TODO: add SMS functionality
 };
 
 #endif

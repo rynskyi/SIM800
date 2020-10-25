@@ -2,8 +2,7 @@
 #define SIM800BASE_H
 
 #include <stdint.h>
-#include <SoftwareSerial.h>
-#include <HardWareserial.h>
+#include <Stream.h>
 
 #define SIM800_LOG_MESSAGE true // for dev only 
 #define SIM800_AT_COMMAND_TIMEOUT 5000  // ms
@@ -32,13 +31,13 @@ struct Sim800_Event {
 
 class Sim800Base {
 private:
-    HardwareSerial *serial;
-    SoftwareSerial *logger;
+    Stream *serial;
+    Stream *logger;
     char buffer[SIM800_BUFFER_MAX_SIZE];
     void log(const char *mode, const char *value);
     char* trim(char *s);  
 public:
-    Sim800Base(HardwareSerial *serial, SoftwareSerial *log);
+    Sim800Base(Stream *serial, Stream *log);
     void sendData(const char *data);
     uint16_t dataAvailable();
     bool getEvent(Sim800_Event *ev);
