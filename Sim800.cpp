@@ -2,7 +2,7 @@
 
 bool Sim800::init() {
     // disable echo, set text mode for responses, set extended error mode
-    // TODO: add max retries check 
+    // TODO: add max retries check and return value 
     while(this->sendCommand("ATE0V1+CMEE=2", NULL, 0, NULL, 1000) != SIM800_RESPONSE_OK) {};
     // additional settings
     this->sendCommand("ATE0+CLCC=1;+CLIP=0");

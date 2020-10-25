@@ -1,11 +1,13 @@
 #ifndef SIM800_H
 #define SIM800_H
 
+#include <SoftwareSerial.h>
+#include <HardWareserial.h>
 #include "Sim800Base.h"
 
 class Sim800 : public Sim800Base {
 public:
-    Sim800(uint8_t rxPin, uint8_t txPin, uint32_t baud) : Sim800Base(rxPin, txPin, baud) {};
+    Sim800(HardwareSerial *serial, SoftwareSerial *logger) : Sim800Base(serial, logger) {};
     bool init();
     bool redyForCall();
     uint8_t makeCall(const char *phone);

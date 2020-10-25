@@ -4,18 +4,18 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-Sim800Base::Sim800Base(uint8_t rxPin, uint8_t txPin, uint32_t baud, uint16_t serialTimeout) : serial(rxPin, txPin) {
+Sim800Base::Sim800Base(HardwareSerial *_serial, SoftwareSerial *_logger) {
     // init serial
-    this->serial.begin(baud);
-    this->serial.setTimeout(serialTimeout);
+    this->serial = _serial;
+    this->logger = _logger;
 }
 
 void Sim800Base::sendData(const char *data) {
-    this->serial.println(data);
+    this->serial->println(data);
 }
 
 uint16_t Sim800Base::dataAvailable() {
-    return this->serial.available();
+    return this->serial->available();
 }
 
 bool Sim800Base::getEvent(Sim800_Event *ev) {
@@ -105,7 +105,7 @@ uint8_t Sim800Base::sendCommand(
     char prevMsg[SIM800_BUFFER_MAX_SIZE] = {};
     uint32_t _t = millis() + timeout;
 
-    this->log("cmd->", cmd);
+    this->log("sim800<-", cmd);
     this->sendData(cmd);
 
     while (status == SIM800_RESPONSE_NONE && millis() < _t) {
@@ -135,7 +135,7 @@ uint8_t Sim800Base::sendCommand(
     };
     // timeout handler
     if (status == SIM800_RESPONSE_NONE) {
-        this->log("res<-", "TIMEOUT");
+        this->log("sim800->", "TIMEOUT");
         status = SIM800_RESPONSE_ERROR;
         _r = "TIMEOUT";
     }
@@ -148,13 +148,13 @@ uint8_t Sim800Base::sendCommand(
 }
 
 const char* Sim800Base::readMessage() {
-    if (!this->serial.available()) { return NULL; }
+    if (!this->serial->available()) { return NULL; }
     memset(this->buffer, 0, sizeof(this->buffer));
     uint8_t i = 0;
     uint32_t _t = millis() + SIM800_SERIAL_RX_TIMEOUT;
     while (millis() < _t && i < sizeof(this->buffer) - 1) {
-        if (this->serial.available()) {
-            this->buffer[i++] = this->serial.read();
+        if (this->serial->available()) {
+            this->buffer[i++] = this->serial->read();
             _t = millis() + SIM800_SERIAL_RX_TIMEOUT;
             // cut here if \r\n\r\n found
             if (i > 3 && 
@@ -167,17 +167,17 @@ const char* Sim800Base::readMessage() {
         }
     }
     char *msg = this->trim(this->buffer);
-    this->log("res<-", msg);
+    this->log("sim800->", msg);
     return msg;
 }
 
 void Sim800Base::log(const char *mode, const char *value) {
     if (SIM800_LOG_MESSAGE) {
-        Serial.print("    "); 
-        Serial.print(mode);
-        Serial.print(": ");
-        Serial.print(value); 
-        Serial.print("\n");
+        this->logger->print("    "); 
+        this->logger->print(mode);
+        this->logger->print(": ");
+        this->logger->print(value); 
+        this->logger->print("\n");
     }         
 }
 
