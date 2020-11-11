@@ -74,3 +74,21 @@ uint32_t Sim800::getSignal() {
     uint32_t k = strtoul(res + strlen("+CSQ: "), NULL, 10);
     return 113 - (k * 2);
 }
+
+uint32_t Sim800::freeSpace() {
+    char res[32] = {};
+    this->sendCommand("AT+CREC=8", res, sizeof(res), "+CREC: 8,");
+    uint32_t k = strtoul(res + strlen("+CREC: 8,"), NULL, 10);
+    return k;
+}
+
+uint8_t Sim800::lsFiles(char *res, uint16_t resSize) {
+    // res not working (because get multiline response string)
+    return this->sendCommand("AT+FSLS=C:\\User\\");
+}
+
+uint8_t Sim800::rmFile(char *fName) {
+    char cmd[32] = {};
+    snprintf(cmd, sizeof(cmd), "AT+FSDEL=C:\\User\\%s", fName);
+    return this->sendCommand(cmd);
+}

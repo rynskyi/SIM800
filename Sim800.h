@@ -19,6 +19,9 @@ public:
     uint8_t resetSettings();
     uint32_t getVoltage();
     uint32_t getSignal();
+    uint32_t freeSpace();
+    uint8_t lsFiles(char *res, uint16_t resSize);
+    uint8_t rmFile(char *fName);
     // TODO: add SMS functionality
 };
 
