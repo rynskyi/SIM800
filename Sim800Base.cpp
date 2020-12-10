@@ -32,6 +32,10 @@ bool Sim800Base::getEvent(Sim800_Event *ev) {
     return result;
 }
 
+void Sim800Base::clearEvents() {
+    this->events.clear();
+}
+
 uint8_t Sim800Base::sendCommand(
         const char *cmd,
         char *resData,
@@ -117,7 +121,7 @@ void Sim800Base::log(uint8_t mode, const char *value) {
         this->logger->print(F("    sim ")); 
         this->logger->print(mode == SIM800_LOG_L ? F("< ") : F("> "));
         this->logger->println(value); 
-    }         
+    } 
 }
 
 char* Sim800Base::trim(char *s) {

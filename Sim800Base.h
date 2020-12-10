@@ -31,6 +31,7 @@ public:
     Sim800Base(Stream *serial, Stream *log);
     void sendData(const char *data);
     uint16_t dataAvailable();
+    void clearEvents();
     bool getEvent(Sim800_Event *ev);
     uint8_t sendCommand(
         const char *cmd,
