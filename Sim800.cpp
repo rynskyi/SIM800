@@ -1,19 +1,33 @@
+#include <Arduino.h>
 #include "Sim800.h"
 
-bool Sim800::init() {
+uint8_t Sim800::init(uint16_t timeout) {
     // disable echo, set text mode for responses, set extended error mode
-    // TODO: add max retries check and return value 
-    while(this->sendCommand("ATE0V1+CMEE=2", NULL, 0, NULL, 1000) != SIM800_RESPONSE_OK) {};
-    // additional settings
-    this->sendCommand("ATE0+CLCC=1;+CLIP=0");
-    return true;
+    unsigned long t = millis();
+    while(millis() - t < timeout) {
+        if (this->sendCommand("ATE0V1+CMEE=2", NULL, 0, NULL, 1500) == SIM800_RESPONSE_OK) {
+            return this->sendCommand("ATE0+CLCC=1;+CLIP=0");
+        }
+    };
+    return SIM800_RESPONSE_ERROR;
 }
 
-bool Sim800::redyForCall() {
+uint8_t Sim800::isReadyToCall() {
     // example: +CPAS: 0
     char res[32] = {};
     this->sendCommand("AT+CPAS", res, sizeof(res), "+CPAS:");
-    return (strstr(res, "+CPAS: 0") != NULL);
+    return (strstr(res, "+CPAS: 0") != NULL) ? SIM800_RESPONSE_OK : SIM800_RESPONSE_ERROR;
+}
+
+uint8_t Sim800::waitForReadyToCall(uint32_t timeout) {
+    unsigned long t = millis();
+    while(millis() - t < timeout) {
+        if (this->isReadyToCall() == SIM800_RESPONSE_OK) {
+            return SIM800_RESPONSE_OK;
+        }
+        delay(2500); // 2.5 sec.
+    }
+    return SIM800_RESPONSE_ERROR;
 }
 
 uint8_t Sim800::makeCall(const char *phone) {

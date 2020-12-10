@@ -44,7 +44,7 @@ uint8_t Sim800Base::sendCommand(
     char prevMsg[SIM800_BUFFER_MAX_SIZE] = {};
     uint32_t _t = millis() + timeout;
 
-    this->log("sim<-", cmd);
+    this->log(SIM800_LOG_L, cmd);
     this->sendData(cmd);
 
     while (status == SIM800_RESPONSE_NONE && millis() < _t) {
@@ -74,7 +74,7 @@ uint8_t Sim800Base::sendCommand(
     };
     // timeout handler
     if (status == SIM800_RESPONSE_NONE) {
-        this->log("sim->", "TIMEOUT");
+        this->log(SIM800_LOG_R, "TIMEOUT");
         status = SIM800_RESPONSE_ERROR;
         _r = "TIMEOUT";
     }
@@ -106,19 +106,17 @@ const char* Sim800Base::readMessage() {
         }
     }
     char *msg = this->trim(this->buffer);
-    this->log("sim->", msg);
+    this->log(SIM800_LOG_R, msg);
     // this->logger->print("Free RAM:");
     // this->logger->println(freeMemory());
     return msg;
 }
 
-void Sim800Base::log(const char *mode, const char *value) {
+void Sim800Base::log(uint8_t mode, const char *value) {
     if (SIM800_LOG_MESSAGE) {
-        this->logger->print("    "); 
-        this->logger->print(mode);
-        this->logger->print(": ");
-        this->logger->print(value); 
-        this->logger->print("\n");
+        this->logger->print(F("    sim ")); 
+        this->logger->print(mode == SIM800_LOG_L ? F("< ") : F("> "));
+        this->logger->println(value); 
     }         
 }
 

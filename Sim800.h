@@ -6,8 +6,9 @@
 class Sim800 : public Sim800Base {
 public:
     Sim800(Stream *serial, Stream *logger) : Sim800Base(serial, logger) {};
-    bool init();
-    bool redyForCall();
+    uint8_t init(uint16_t timeout);
+    uint8_t isReadyToCall();
+    uint8_t waitForReadyToCall(uint32_t timeout);
     uint8_t makeCall(const char *phone);
     uint8_t answerCall();
     uint8_t hangUpCall();

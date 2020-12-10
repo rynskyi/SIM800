@@ -16,12 +16,15 @@
 #define SIM800_RESPONSE_OK 1
 #define SIM800_RESPONSE_ERROR 2
 
+#define SIM800_LOG_L 1
+#define SIM800_LOG_R 2
+
 class Sim800Base {
 private:
     Stream *serial;
     Stream *logger;
     char buffer[SIM800_BUFFER_MAX_SIZE];
-    void log(const char *mode, const char *value);
+    void log(uint8_t mode, const char *value);
     char* trim(char *s);  
     CircularBuffer<Sim800_Event, SIM800_EVENET_QUEUE_SIZE> events;
 public:
