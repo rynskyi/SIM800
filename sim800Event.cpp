@@ -5,7 +5,7 @@
 
 
 bool parseEvent(Sim800_Event *ev, const char *msg) {
-        if (msg == NULL) { 
+        if (msg == NULL) {
         return false; 
     }
     // init event 

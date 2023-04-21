@@ -94,9 +94,9 @@ const char* Sim800Base::readMessage() {
     if (!this->serial->available()) { return NULL; }
     memset(this->buffer, 0, sizeof(this->buffer));
     uint8_t i = 0;
-    uint32_t _t = millis() + SIM800_SERIAL_RX_TIMEOUT;
+    uint32_t _t = millis() + SIM800_SERIAL_RX_TIMEOUT;          // TODO: bug (bad time compare) 
     while (millis() < _t && i < sizeof(this->buffer) - 1) {
-        if (this->serial->available()) {
+        if (this->serial->available()) {                        // TODO: enhance two time if this->serial->available() 
             this->buffer[i++] = this->serial->read();
             _t = millis() + SIM800_SERIAL_RX_TIMEOUT;
             // cut here if \r\n\r\n found
