@@ -18,11 +18,13 @@ public:
     uint8_t stopAudio();
     uint8_t sendUSSD(const char *ussd);
     uint8_t resetSettings();
-    uint32_t getVoltage();
-    uint32_t getSignal();
-    uint32_t freeSpace();
+    uint8_t getVoltage(uint32_t *voltage);
+    uint8_t getSignal(uint32_t *strength);
+    uint8_t freeSpace(uint32_t *bytes);
     uint8_t lsFiles(char *res, uint16_t resSize);
     uint8_t rmFile(char *fName);
+    uint8_t sendSms(const char *phone, const char *text);
+    uint8_t deleteAllSms();
     // TODO: add SMS functionality
 };
 

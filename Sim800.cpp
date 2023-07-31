@@ -2,38 +2,37 @@
 #include "Sim800.h"
 
 uint8_t Sim800::init(uint16_t timeout) {
-    // disable echo, set text mode for responses, set extended error mode
     unsigned long t = millis();
-    while(millis() - t < timeout) {
-        if (this->sendCommand("ATE0V1+CMEE=2", NULL, 0, NULL, 1500) == SIM800_RESPONSE_OK) {
-            return this->sendCommand("ATE0+CLCC=1;+CLIP=0");
+    while (millis() - t < timeout) {
+        if (sendCommand("ATE0V1+CMEE=2", 1500) == SIM800_RES_OK) {
+            return sendCommand("ATE0+CLCC=1;+CLIP=0");
         }
-    };
-    return SIM800_RESPONSE_ERROR;
+    }
+    return SIM800_RES_ERR;
 }
 
 uint8_t Sim800::isReadyToCall() {
-    // example: +CPAS: 0
-    char res[32] = {};
-    this->sendCommand("AT+CPAS", res, sizeof(res), "+CPAS:");
-    return (strstr(res, "+CPAS: 0") != NULL) ? SIM800_RESPONSE_OK : SIM800_RESPONSE_ERROR;
+    // char buf[32] = {};
+    sendCommand("AT+CPAS");
+    char *res = getResponse();
+    return (strstr(res, "+CPAS: 0") != NULL) ? SIM800_RES_OK : SIM800_RES_ERR;
 }
 
 uint8_t Sim800::waitForReadyToCall(uint32_t timeout) {
     unsigned long t = millis();
-    while(millis() - t < timeout) {
-        if (this->isReadyToCall() == SIM800_RESPONSE_OK) {
-            return SIM800_RESPONSE_OK;
+    while (millis() - t < timeout) {
+        if (isReadyToCall() == SIM800_RES_OK) {
+            return SIM800_RES_OK;
         }
         delay(2500); // 2.5 sec.
     }
-    return SIM800_RESPONSE_ERROR;
+    return SIM800_RES_ERR;
 }
 
 uint8_t Sim800::makeCall(const char *phone) {
-    char cmd[32] = {};
-    snprintf(cmd, sizeof(cmd), "ATD%s;", phone);
-    return this->sendCommand(cmd);
+    char buf[32] = {};
+    snprintf(buf, sizeof(buf), "ATD%s;", phone);
+    return sendCommand(buf);
 }
 
 uint8_t Sim800::answerCall() {
@@ -53,9 +52,9 @@ uint8_t Sim800::turnOnDTMF() {
 }
 
 uint8_t Sim800::playAudio(const char *fname, uint8_t volume, bool loop) {
-    char cmd[64] = {};
-    snprintf(cmd, sizeof(cmd), "AT+CREC=4,\"%s\",0,%d,%d", fname, volume, (loop?1:0));
-    return this->sendCommand(cmd);
+    char buf[64] = {};
+    snprintf(buf, sizeof(buf), "AT+CREC=4,\"%s\",0,%d,%d", fname, volume, (loop?1:0));
+    return this->sendCommand(buf);
 }
 
 uint8_t Sim800::stopAudio() {
@@ -63,46 +62,70 @@ uint8_t Sim800::stopAudio() {
 }
 
 uint8_t Sim800::sendUSSD(const char *ussd) {
-    char cmd[32] = {};
-    snprintf(cmd, sizeof(cmd), "AT+CUSD=1,\"%s\"", ussd);
-    return this->sendCommand(cmd);
+    char buf[32] = {};
+    snprintf(buf, sizeof(buf), "AT+CUSD=1,\"%s\"", ussd);
+    return this->sendCommand(buf);
 }
 
 uint8_t Sim800::resetSettings() {
     return this->sendCommand("ATZ0");
 }
 
-uint32_t Sim800::getVoltage() {
+uint8_t Sim800::getVoltage(uint32_t *voltage) {
     // example: +CBC: 0,100,4498
-    char res[32] = {};
-    this->sendCommand("AT+CBC", res, sizeof(res), "+CBC:");
+    uint8_t status = this->sendCommand("AT+CBC");
+    char *res = getResponse();
     const char *p = strstr(res + strlen("+CBC: 0,"), ",") + 1;
-    return strtoul(p, NULL, 10);
+    *voltage  = strtoul(p, NULL, 10);
+    return status;
 }
 
-uint32_t Sim800::getSignal() {
+uint8_t Sim800::getSignal(uint32_t *strength) {
     // return value converted to dBm
     // example: +CSQ: 10,0
-    char res[32] = {};
-    this->sendCommand("AT+CSQ", res, sizeof(res), "+CSQ:");
-    uint32_t k = strtoul(res + strlen("+CSQ: "), NULL, 10);
-    return 113 - (k * 2);
+    uint8_t status = this->sendCommand("AT+CSQ");
+    char *res = getResponse();
+    uint32_t v = strtoul(res + strlen("+CSQ: "), NULL, 10);
+    *strength = 113 - (v * 2);
+    return status;
 }
 
-uint32_t Sim800::freeSpace() {
-    char res[32] = {};
-    this->sendCommand("AT+CREC=8", res, sizeof(res), "+CREC: 8,");
-    uint32_t k = strtoul(res + strlen("+CREC: 8,"), NULL, 10);
-    return k;
+uint8_t Sim800::freeSpace(uint32_t *bytes) {
+    uint8_t status = this->sendCommand("AT+CREC=8");
+    char *res = getResponse();
+    *bytes = strtoul(res + strlen("+CREC: 8,"), NULL, 10);
+    return status;
 }
 
 uint8_t Sim800::lsFiles(char *res, uint16_t resSize) {
-    // res not working (because get multiline response string)
+    // TODO: res not working (because get multiline response string)
     return this->sendCommand("AT+FSLS=C:\\User\\");
 }
 
 uint8_t Sim800::rmFile(char *fName) {
-    char cmd[32] = {};
-    snprintf(cmd, sizeof(cmd), "AT+FSDEL=C:\\User\\%s", fName);
-    return this->sendCommand(cmd);
+    char buf[32] = {};
+    snprintf(buf, sizeof(buf), "AT+FSDEL=C:\\User\\%s", fName);
+    return this->sendCommand(buf);
+}
+
+uint8_t Sim800::deleteAllSms() {
+    uint8_t status = sendCommand("AT+CMGF=1");
+    if (status != SIM800_RES_OK) return status;
+    status = sendCommand("AT+CMGDA=\"DEL ALL\"");
+    return status;
+}
+
+uint8_t Sim800::sendSms(const char *phone, const char *text) {
+    uint8_t status;
+    char buf[128] = {};
+
+    status = sendCommand("AT+CMGF=1");
+    if (status != SIM800_RES_OK) return status;
+
+    snprintf(buf, sizeof(buf), "AT+CMGS=\"%s\"", phone);
+    status = sendCommand(buf, ">");
+    if (status != SIM800_RES_OK) return status;
+
+    snprintf(buf, sizeof(buf), "%s\032", text); // Ctrl+Z = 26 = '\032' = '\x1A'
+    return sendCommand(buf, 10000);
 }

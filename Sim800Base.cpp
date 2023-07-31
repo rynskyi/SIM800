@@ -1,19 +1,108 @@
 #include <Arduino.h>
 #include "Sim800Base.h"
-// #include <MemoryFree.h>
 
-Sim800Base::Sim800Base(Stream *_serial, Stream *_logger) {
-    // init serial
-    this->serial = _serial;
-    this->logger = _logger;
+Sim800Base::Sim800Base(Stream *_serial, Stream *_logger) : serial(_serial), logger(_logger) {}
+
+uint8_t Sim800Base::sendCommand(const char *command, const char *okFlag, uint32_t timeout) {
+    return _sendCommand(command, okFlag, timeout);
 }
 
-void Sim800Base::sendData(const char *data) {
-    this->serial->println(data);
+uint8_t Sim800Base::sendCommand(const char *command, uint32_t timeout) {
+    return _sendCommand(command, "OK", timeout);
+}
+
+uint8_t Sim800Base::_sendCommand(const char *command, const char *okFlag, uint32_t timeout) {
+    uint8_t status = SIM800_RES_NONE;
+    const char *msg = NULL;
+
+    uint32_t t = millis();
+    log(SIM800_LOG_L, command);
+    sendMessage(command);
+    memset(prevMsg, 0, sizeof(prevMsg));
+
+    while (status == SIM800_RES_NONE && (millis() - t < timeout)) {
+        msg = readMessage();
+        if (msg && *msg) {
+            log(SIM800_LOG_R, msg);
+            // success
+            if (strcmp(msg, okFlag) == 0) {
+                status = SIM800_RES_OK;
+            // error
+            } else if (strstr(msg, "+CME ERROR:") == msg || strstr(msg, "+CMS ERROR:") == msg) {
+                status = SIM800_RES_ERR;
+            // else
+            } else {
+                strncpy(prevMsg, msg, sizeof(prevMsg) - 1);
+                Sim800_Event ev;
+                if (parseEvent(&ev, msg)) {
+                    events.push(ev);
+                }
+            }
+        }
+    }
+
+    if (status == SIM800_RES_NONE) {
+        log(SIM800_LOG_R, "TIMEOUT");
+        status = SIM800_RES_ERR;
+    }
+
+    return status;
+}
+
+char* Sim800Base::getResponse() {
+    return prevMsg;
+}
+
+const char* Sim800Base::readMessage() {
+    if (!serial->available()) return NULL;
+
+    uint8_t i = 0;
+    uint32_t t = millis();
+    memset(buffer, 0, sizeof(buffer));
+
+    while (millis() - t < SIM800_SERIAL_RX_TIMEOUT && i < sizeof(buffer) - 1) {
+        if (!serial->available()) continue;
+        t = millis();
+        char c = serial->read();
+        buffer[i++] = c;
+        if (c == '\n' || c == '\r') break;
+    }
+    return trim(buffer);
+}
+
+void Sim800Base::sendMessage(const char *data) {
+    serial->println(data);
 }
 
 uint16_t Sim800Base::dataAvailable() {
-    return this->serial->available();
+    return serial->available();
+}
+
+char* Sim800Base::trim(char *str) {
+    if (!str || !*str) return str;
+
+    char *start = str;
+    char *end = str + strlen(str) - 1;
+    while (*start && (*start == ' ' || *start == '\r' || *start == '\n')) start++;
+    while (end > start && (*end == ' ' || *end == '\r' || *end == '\n')) end--;
+
+    *(end + 1) = '\0';
+
+    if (start != str) {
+        while (*start) *str++ = *start++;
+        *str = '\0';
+    }
+    return str;
+}
+
+void Sim800Base::log(uint8_t mode, const char *value) {
+    if (SIM800_LOG_MESSAGE) {
+        logger->print(F("    sim "));
+        logger->print(mode == SIM800_LOG_L ? F("< ") : F("> "));
+        logger->print("\"");
+        logger->print(value);
+        logger->print("\"\n");
+    }
 }
 
 bool Sim800Base::getEvent(Sim800_Event *ev) {
@@ -33,101 +122,5 @@ bool Sim800Base::getEvent(Sim800_Event *ev) {
 }
 
 void Sim800Base::clearEvents() {
-    this->events.clear();
+    events.clear();
 }
-
-uint8_t Sim800Base::sendCommand(
-        const char *cmd,
-        char *resData,
-        uint16_t resDataSize,
-        const char *prefix,
-        uint32_t timeout
-) {
-    uint8_t status = SIM800_RESPONSE_NONE;
-    const char *msg, *_r = NULL;
-    char prevMsg[SIM800_BUFFER_MAX_SIZE] = {};
-    uint32_t _t = millis() + timeout;
-
-    this->log(SIM800_LOG_L, cmd);
-    this->sendData(cmd);
-
-    while (status == SIM800_RESPONSE_NONE && millis() < _t) {
-        msg = this->readMessage();
-        if (msg != NULL) {
-            // success 
-            if (strcmp(msg, "OK") == 0) {
-                status = SIM800_RESPONSE_OK;
-                if (prefix != NULL && strstr(prevMsg, prefix) == prevMsg) {
-                    _r = prevMsg;
-                }
-            }
-            // error
-            else if (strstr(msg, "+CME ERROR:") == msg || strstr(msg, "+CMS ERROR:") == msg) {
-                status = SIM800_RESPONSE_ERROR;
-                _r = msg + 12; // because len("+CME ERROR:") == 12
-            } 
-            else {
-                strncpy(prevMsg, msg, sizeof(prevMsg)); // store last message 
-                // handle event
-                Sim800_Event ev;
-                if (parseEvent(&ev, msg)) {
-                    this->events.push(ev);
-                }
-            }
-        }          
-    };
-    // timeout handler
-    if (status == SIM800_RESPONSE_NONE) {
-        this->log(SIM800_LOG_R, "TIMEOUT");
-        status = SIM800_RESPONSE_ERROR;
-        _r = "TIMEOUT";
-    }
-    // set response data
-    if (resData != NULL && resDataSize > 0) {
-        memset(resData, 0, resDataSize);
-        strncpy(resData, _r, resDataSize - 1);
-    }
-    return status;
-}
-
-const char* Sim800Base::readMessage() {
-    if (!this->serial->available()) { return NULL; }
-    memset(this->buffer, 0, sizeof(this->buffer));
-    uint8_t i = 0;
-    uint32_t _t = millis() + SIM800_SERIAL_RX_TIMEOUT;          // TODO: bug (bad time compare) 
-    while (millis() < _t && i < sizeof(this->buffer) - 1) {
-        if (this->serial->available()) {                        // TODO: enhance two time if this->serial->available() 
-            this->buffer[i++] = this->serial->read();
-            _t = millis() + SIM800_SERIAL_RX_TIMEOUT;
-            // cut here if \r\n\r\n found
-            if (i > 3 && 
-                this->buffer[i-1] == '\n' && this->buffer[i-2] == '\r' &&
-                this->buffer[i-3] == '\n' && this->buffer[i-4] == '\r'
-            ) {
-                this->buffer[i-4] = '\0';
-                break;
-            }
-        }
-    }
-    char *msg = this->trim(this->buffer);
-    this->log(SIM800_LOG_R, msg);
-    // this->logger->print("Free RAM:");
-    // this->logger->println(freeMemory());
-    return msg;
-}
-
-void Sim800Base::log(uint8_t mode, const char *value) {
-    if (SIM800_LOG_MESSAGE) {
-        this->logger->print(F("    sim ")); 
-        this->logger->print(mode == SIM800_LOG_L ? F("< ") : F("> "));
-        this->logger->println(value); 
-    } 
-}
-
-char* Sim800Base::trim(char *s) {
-    // trim "/r/n" 
-    if (s[0] == '\r' && s[1] == '\n') { s+=2; }
-    uint16_t len = strlen(s);
-    if (s[len - 2] == '\r' && s[len - 1] == '\n') s[len -2] = '\0';
-    return s;
-}     
