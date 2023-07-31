@@ -16,14 +16,12 @@ uint8_t Sim800Base::_sendCommand(const char *command, const char *okFlag, uint32
     const char *msg = NULL;
 
     uint32_t t = millis();
-    log(SIM800_LOG_L, command);
     sendMessage(command);
     memset(prevMsg, 0, sizeof(prevMsg));
 
     while (status == SIM800_RES_NONE && (millis() - t < timeout)) {
         msg = readMessage();
         if (msg && *msg) {
-            log(SIM800_LOG_R, msg);
             // success
             if (strcmp(msg, okFlag) == 0) {
                 status = SIM800_RES_OK;
@@ -67,10 +65,13 @@ const char* Sim800Base::readMessage() {
         buffer[i++] = c;
         if (c == '\n' || c == '\r') break;
     }
-    return trim(buffer);
+    trim(buffer);
+    if (buffer && *buffer) log(SIM800_LOG_R, buffer);
+    return buffer;
 }
 
 void Sim800Base::sendMessage(const char *data) {
+    log(SIM800_LOG_L, data);
     serial->println(data);
 }
 
